@@ -8,14 +8,15 @@ export default function App() {
   const [email, setEmail] = useState<string>('');
   const [deliveryTime, setDeliveryTime] = useState<string>('08:00');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [interestInput, setInterestInput] = useState<string>('');
 
-  const interestsList = [
-    "Space & Cosmology",
-    "Cognitive Science",
-    "System Design",
-    "Lost Histories",
-    "Synthetic Biology",
-    "Micro-economics"
+  const genericOptions = [
+    "Space", 
+    "History", 
+    "Tech", 
+    "Philosophy", 
+    "Science", 
+    "Economics"
   ];
 
   const toggleInterest = (interest: string) => {
@@ -26,13 +27,55 @@ export default function App() {
     }
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addCustomInterest();
+    }
+  };
+
+  const addCustomInterest = () => {
+    const trimmed = interestInput.trim();
+    if (trimmed && !selectedInterests.includes(trimmed)) {
+      setSelectedInterests([...selectedInterests, trimmed]);
+      setInterestInput('');
+    }
+  };
+
+  const removeInterest = (interestToRemove: string) => {
+    setSelectedInterests(selectedInterests.filter(i => i !== interestToRemove));
+  };
+
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedInterests.length === 0) {
-      alert("Please select at least one interest!");
+      alert("Please select or add at least one interest!");
       return;
     }
-    setStep('success');
+
+    try {
+      const response = await fetch('http://localhost:8000/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          interests: selectedInterests,
+          time: deliveryTime,
+        }),
+      });
+
+      if (response.ok) {
+        setStep('success');
+      } else {
+        const errMsg = await response.text();
+        alert(`Subscription failed: ${errMsg}`);
+      }
+    } catch (error) {
+      console.error("Error communicating with server:", error);
+      alert("Could not connect to the subscription server. Make sure your Go backend is running!");
+    }
   };
 
   return (
@@ -55,7 +98,7 @@ export default function App() {
         
         {/* STEP 1: HERO VIEW (Minimalist Landing) */}
         {step === 'hero' && (
-          <div className="text-center space-y-8 animate-fade-in">
+          <div className="text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100 text-slate-600 text-xs font-medium mx-auto">
               <Sparkles className="h-3 w-3 text-indigo-500" /> Reduce decision fatigue
             </div>
@@ -79,11 +122,12 @@ export default function App() {
           </div>
         )}
 
-        {/* STEP 2: MINIMALIST FORM VIEW */}
+        {/* STEP 2: MINIMALIST CONFIGURATION FORM */}
         {step === 'form' && (
-          <div className="space-y-8 animate-fade-in">
+          <div className="space-y-8">
             {/* Back Button */}
             <button 
+              type="button"
               onClick={() => setStep('hero')}
               className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-900 transition cursor-pointer"
             >
@@ -96,33 +140,87 @@ export default function App() {
             </div>
 
             <form onSubmit={handleSubscribe} className="space-y-6">
-              {/* Interests Select */}
-              <div className="space-y-3">
+              
+              {/* Hybrid Interests Section */}
+              <div className="space-y-4">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Select interests
+                  What are you curious about?
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {interestsList.map((interest) => {
-                    const isSelected = selectedInterests.includes(interest);
-                    return (
-                      <button
-                        key={interest}
-                        type="button"
-                        onClick={() => toggleInterest(interest)}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border ${
-                          isSelected
-                            ? 'bg-slate-900 border-slate-900 text-white'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                        }`}
-                      >
-                        {interest}
-                      </button>
-                    );
-                  })}
+
+                {/* Part A: Generic Pills */}
+                <div className="space-y-2">
+                  <p className="text-[11px] text-slate-400">Select popular topics:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {genericOptions.map((topic) => {
+                      const isSelected = selectedInterests.includes(topic);
+                      return (
+                        <button
+                          key={topic}
+                          type="button"
+                          onClick={() => toggleInterest(topic)}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 border ${
+                            isSelected
+                              ? 'bg-slate-900 border-slate-900 text-white'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          {isSelected ? `✓ ${topic}` : `+ ${topic}`}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* Part B: Custom Tags Input */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <p className="text-[11px] text-slate-400">Or add your own unique interests:</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={interestInput}
+                      onChange={(e) => setInterestInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="e.g., Deep Sea Exploration..."
+                      className="flex-grow bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-slate-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomInterest}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold px-4 py-2 rounded-lg transition cursor-pointer"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Part C: Display Unified Choices */}
+                {selectedInterests.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] text-slate-400">Your profile:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedInterests.map((interest) => (
+                        <span
+                          key={interest}
+                          className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 pl-3 pr-2 py-1 rounded-lg text-xs font-medium border border-slate-200"
+                        >
+                          {interest}
+                          <button
+                            type="button"
+                            onClick={() => removeInterest(interest)}
+                            className="hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full p-0.5 transition cursor-pointer"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Time Selection */}
+              {/* Delivery Time Selection */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Delivery time
@@ -150,7 +248,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Submit */}
+              {/* Submit Button */}
               <button
                 type="submit"
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-6 rounded-lg transition duration-200 text-sm shadow-sm cursor-pointer"
@@ -163,7 +261,7 @@ export default function App() {
 
         {/* STEP 3: SUCCESS STATE */}
         {step === 'success' && (
-          <div className="text-center space-y-6 animate-fade-in">
+          <div className="text-center space-y-6">
             <div className="mx-auto h-12 w-12 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
               <Check className="h-5 w-5" />
             </div>
