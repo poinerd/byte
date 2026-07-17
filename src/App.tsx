@@ -54,7 +54,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/subscribe', {
+      const response = await fetch('https://curator-v7qa.onrender.com/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
